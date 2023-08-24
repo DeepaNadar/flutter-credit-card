@@ -1,129 +1,209 @@
+import 'dart:developer' as developer;
+import 'package:credit_card_project/model/card_model.dart';
+import 'package:credit_card_project/screens/card_detail.dart';
+import 'package:credit_card_project/services/auth_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_swiper_view/flutter_swiper_view.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
-class CreditCardsPage extends StatelessWidget {
+class CreditCardPage extends StatefulWidget {
+  final AuthService authService;
+
+  CreditCardPage({required this.authService});
+
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Container(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            _buildTitleSection(
-                title: "Payment Details",
-                subTitle: "How would you like to pay ?"),
-            _buildCreditCard(
-                color: Color(0xFF090943),
-                cardExpiration: "08/2022",
-                cardHolder: "HOUSSEM SELMI",
-                cardNumber: "3546 7532 XXXX 9742"),
-            SizedBox(
-              height: 15,
-            ),
-            _buildCreditCard(
-                color: Color(0xFF000000),
-                cardExpiration: "05/2024",
-                cardHolder: "HOUSSEM SELMI",
-                cardNumber: "9874 4785 XXXX 6548"),
-            _buildAddCardButton(
-              icon: Icon(Icons.add),
-              color: Color(0xFF081603),
-            )
-          ],
-        ),
+  _CreditCardPageState createState() => _CreditCardPageState();
+}
+
+class _CreditCardPageState extends State<CreditCardPage> {
+  final ImagePicker _imagePicker = ImagePicker();
+  @override
+  void initState() {
+    super.initState();
+    fetchCardData();
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: Duration(seconds: 2),
       ),
     );
   }
 
-  // Build the title section
-  Column _buildTitleSection({@required title, @required subTitle}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(left: 8.0, top: 16.0),
-          child: Text(
-            '$title',
-            style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold,color: Colors.black),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Column(
+        children: [
+          Expanded(child: StackCard()),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+            child: Container(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  try {
+                    final image = await _imagePicker.pickImage(
+                        source: ImageSource.camera);
+
+                    if (image == null) {
+                      return;
+                    }
+                    CardModel cardDataForApi = CardModel.newCardForApi(
+                      name: "Deepa's HDFC Card",
+                      cardExpiration: "3/2023",
+                      cardHolder: "DEEPA NADAR",
+                      cardNumber: "9876 5432 1234 5678",
+                      category: "MC",
+                    );
+
+                    await widget.authService.sendDataToAPI(cardDataForApi);
+                    _showSuccessSnackBar('Card created successfully!');
+                  } catch (e) {
+                    developer.log("Error picking image: $e");
+                  }
+                },
+                child: Text(
+                  '+ Add Card',
+                  style: GoogleFonts.poppins(
+                      fontSize: 16, letterSpacing: 0.5, color: Colors.white),
+                ),
+                style: ButtonStyle(
+                  backgroundColor:
+                      MaterialStateProperty.all<Color>(Colors.black),
+                  padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+                      EdgeInsets.symmetric(vertical: 14)),
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 8.0, bottom: 16.0),
-          child: Text(
-            '$subTitle',
-            style: TextStyle(fontSize: 21, color: Colors.black45),
-          ),
-        )
-      ],
+        ],
+      ),
     );
   }
 
-  // Build the credit card widget
+  Future<void> fetchCardData() async {
+    try {
+      final cardData = await widget.authService.getCardData();
+      final results = cardData['results'] as List<dynamic>;
+
+      final List<CardModel> cards = results
+          .map((cardJson) =>
+              CardModel.fromJson(cardJson as Map<String, dynamic>))
+          .toList();
+
+      setState(() {
+        cardList = cards;
+      });
+    } catch (e) {
+      // Handle errors
+      developer.log('Error fetching card data: $e');
+    }
+  }
+}
+
+class StackCard extends StatefulWidget {
+  const StackCard({Key? key});
+
+  @override
+  State<StackCard> createState() => _StackCardState();
+}
+
+List<CardModel> cardList = [];
+
+class _StackCardState extends State<StackCard> {
+  @override
+  Widget build(BuildContext context) {
+    return Swiper(
+      itemWidth: 350,
+      itemHeight: 220,
+      itemCount: cardList.length,
+      layout: SwiperLayout.STACK,
+      scrollDirection: Axis.vertical,
+      itemBuilder: (context, index) {
+        final cardData = cardList[index];
+        return _buildCreditCard(
+            color: Color.fromARGB(255, 44, 44, 44),
+            cardNumber: cardData.cardNumber,
+            cardHolder: cardData.cardHolder,
+            cardExpiration: cardData.cardExpiration,
+            index: index);
+      },
+    );
+  }
+
   Card _buildCreditCard(
       {required Color color,
       required String cardNumber,
       required String cardHolder,
-      required String cardExpiration}) {
+      required String cardExpiration,
+      required int index}) {
     return Card(
-      elevation: 4.0,
-      color: color,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Container(
-        height: 200,
-        padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 22.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            _buildLogosBlock(),
-            Padding(
-              padding: const EdgeInsets.only(top: 16.0),
-              child: Text(
-                '$cardNumber',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 21,
-                    fontFamily: 'CourrierPrime'),
+        elevation: 10.0,
+        color: color,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CardDetail(
+                  cardNumber: cardNumber,
+                  cardHolder: cardHolder,
+                  cardExpiration: cardExpiration,
+                  category: cardList[index].category,
+                  name: cardList[index].name,
+                ),
               ),
-            ),
-            Row(
+            );
+          },
+          child: Container(
+            height: 200,
+            padding:
+                const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 22.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
-                _buildDetailsBlock(
-                  label: 'CARDHOLDER',
-                  value: cardHolder,
+                _buildLogosBlock(index),
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: Text(
+                    '$cardNumber',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 21,
+                        fontFamily: 'CourrierPrime'),
+                  ),
                 ),
-                _buildDetailsBlock(label: 'VALID THRU', value: cardExpiration),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    _buildDetailsBlock(
+                      label: 'CARDHOLDER',
+                      value: cardHolder,
+                    ),
+                    _buildDetailsBlock(
+                        label: 'VALID THRU', value: cardExpiration),
+                  ],
+                ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 
-  // Build the top row containing logos
-  Row _buildLogosBlock() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: <Widget>[
-        Image.asset(
-          "assets/images/contact_less.png",
-          height: 20,
-          width: 18,
-        ),
-        Image.asset(
-          "assets/images/mastercard.png",
-          height: 50,
-          width: 50,
-        ),
-      ],
-    );
-  }
-
-// Build Column containing the cardholder and expiration information
   Column _buildDetailsBlock({required String label, required String value}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,23 +222,24 @@ class CreditCardsPage extends StatelessWidget {
     );
   }
 
-// Build the FloatingActionButton
-  Container _buildAddCardButton({
-    required Icon icon,
-    required Color color,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(top: 24.0),
-      alignment: Alignment.center,
-      child: FloatingActionButton(
-        elevation: 2.0,
-        onPressed: () {
-          print("Add a credit card");
-        },
-        backgroundColor: color,
-        mini: false,
-        child: icon,
-      ),
+  Row _buildLogosBlock(int index) {
+    final cardData = cardList[index];
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: <Widget>[
+        Image.asset(
+          "assets/images/contact_less.png",
+          height: 20,
+          width: 18,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Text(
+            cardData.category,
+            style: GoogleFonts.poppins(color: Colors.white),
+          ),
+        )
+      ],
     );
   }
 }

@@ -1,32 +1,45 @@
-import 'package:credit_card_project/home.dart';
+import 'dart:io';
+import 'package:credit_card_project/screens/authentication_wrapper.dart';
+import 'package:credit_card_project/screens/onboard_screen.dart';
+import 'package:credit_card_project/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'credit_cards_page.dart';
-import 'onboard/onboard.dart';
+
+
 
 int? isViewed;
 Future<void> main() async {
-  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
   WidgetsFlutterBinding.ensureInitialized();
   SharedPreferences prefs=await SharedPreferences.getInstance();
-  isViewed=prefs.getInt('onBoard');
-  runApp(const MyApp());
+  AuthService authService = AuthService();
+  isViewed=prefs.getInt('SliderLayout');
+  runApp(MyApp(authService: authService,));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key});
+  final AuthService authService;
+  const MyApp({required this.authService});
 
   @override
   Widget build(BuildContext context) {
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: 
+      Platform.isAndroid ? Brightness.dark : Brightness.light,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarDividerColor: Colors.grey,
+      systemNavigationBarIconBrightness: Brightness.dark
+    ));
     return MaterialApp(
+      title: "",
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor: Colors.white
+        primarySwatch: Colors.green,
+        platform: TargetPlatform.iOS
       ),
-      title: 'Testing App',
-      home: isViewed !=0 ? const OnBoard() :  Home(),
+      home: isViewed !=0 ? onBoardScreen(authService: authService,) : AuthenticationWrapper(),
     );
   }
 }
-
